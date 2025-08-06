@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>德语单词闪卡系统 - 基于遗忘曲线</title>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 20px;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            background: linear-gradient(to right, #ffd700, #ffffff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto;
+            color: #e0e0ff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        
+        .dashboard {
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+            overflow: hidden;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: linear-gradient(to right, #4b6cb7, #182848);
+            border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            min-width: 150px;
+        }
+        
+        .stat-value {
+            font-size: 2.4rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            color: #e0e0ff;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+        
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .file-section {
+            width: 30%;
+            padding: 25px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .flashcard-section {
+            width: 70%;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .upload-area {
+            border: 2px dashed #4b6cb7;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            background: rgba(75, 108, 183, 0.05);
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            background: rgba(75, 108, 183, 0.1);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .upload-icon {
+            font-size: 3.5rem;
+            color: #4b6cb7;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover .upload-icon {
+            transform: scale(1.1);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(to right, #4b6cb7, #3a5699);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px;
+            box-shadow: 0 5px 15px rgba(75, 108, 183, 0.4);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn i {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(75, 108, 183, 0.6);
+        }
+        
+        .btn-export {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+        }
+        
+        .btn-export:hover {
+            box-shadow: 0 8px 20px rgba(0, 176, 155, 0.6);
+        }
+        
+        .btn-reset {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+        }
+        
+        .btn-reset:hover {
+            box-shadow: 0 8px 20px rgba(255, 65, 108, 0.6);
+        }
+        
+        .flashcard {
+            width: 500px;
+            height: 320px;
+            perspective: 1200px;
+            margin-bottom: 30px;
+        }
+        
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+        
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .flashcard-front {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #333;
+            border: 8px solid #ffffff;
+        }
+        
+        .flashcard-back {
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            color: #333;
+            transform: rotateY(180deg);
+            border: 8px solid #ffffff;
+        }
+        
+        .word {
+            font-size: 3.2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .hint {
+            font-size: 1.1rem;
+            opacity: 0.7;
+            position: absolute;
+            bottom: 20px;
+            color: #5a5a5a;
+        }
+        
+        .back-top {
+            height: 40%;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 3px dashed rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        
+        .back-bottom {
+            height: 60%;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 15px;
+        }
+        
+        .detail-box {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .detail-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.85);
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            font-size: 1rem;
+            color: #4b6cb7;
+            margin-bottom: 10px;
+        }
+        
+        .detail-value {
+            font-size: 1.3rem;
+            font-weight: 500;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        
+        .pronunciation-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .sound-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4b6cb7, #3a5699);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.8rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(75, 108, 183, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .sound-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(75, 108, 183, 0.6);
+        }
+        
+        .rating-section {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .rating-group {
+            margin: 10px 0;
+        }
+        
+        .rating-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #4b6cb7;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .rating-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .rating-btn {
+            padding: 12px 25px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            min-width: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .rating-btn i {
+            margin-right: 8px;
+            font-size: 1.2rem;
+        }
+        
+        .rating-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        }
+        
+        .btn-again {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            color: white;
+        }
+        
+        .btn-hard {
+            background: linear-gradient(to right, #ffd26f, #ffa939);
+            color: white;
+        }
+        
+        .btn-good {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            color: white;
+        }
+        
+        .btn-mastered {
+            background: linear-gradient(to right, #1e90ff, #3742fa);
+            color: white;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin-top: 20px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff416c, #ffd26f, #00b09b);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-top: 12px;
+            font-weight: bold;
+            color: #495057;
+            font-size: 1.1rem;
+        }
+        
+        .status-message {
+            text-align: center;
+            margin: 20px 0;
+            padding: 18px;
+            border-radius: 15px;
+            background: #e3f2fd;
+            font-size: 1.1rem;
+            font-weight: 500;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        
+        .instructions {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+        
+        .instructions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px;
+        }
+        
+        .instructions-header h3 {
+            color: #4b6cb7;
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        
+        .instructions-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .instructions-content.expanded {
+            max-height: 500px;
+            padding-top: 15px;
+        }
+        
+        .instructions-content ol {
+            padding-left: 25px;
+        }
+        
+        .instructions-content li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+            font-size: 1.05rem;
+        }
+        
+        .toggle-icon {
+            font-size: 1.5rem;
+            color: #4b6cb7;
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-icon.expanded {
+            transform: rotate(180deg);
+        }
+        
+        .celebration-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+        }
+        
+        .celebration-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .celebration-content {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            border-radius: 25px;
+            padding: 50px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        
+        .celebration-title {
+            font-size: 2.5rem;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .celebration-message {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .celebration-stats {
+            background: rgba(255,255,255,0.15);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-around;
+        }
+        
+        .celebration-stat {
+            color: white;
+            text-align: center;
+        }
+        
+        .celebration-stat-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #ffd700;
+        }
+        
+        .celebration-stat-label {
+            font-size: 1.1rem;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .close-modal:hover {
+            transform: scale(1.2);
+        }
+        
+        footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.85);
+            padding: 30px 0;
+            font-size: 1rem;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        
+        @media (max-width: 992px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .file-section, .flashcard-section {
+                width: 100%;
+            }
+            
+            .file-section {
+                border-right: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+            
+            .flashcard {
+                width: 100%;
+                max-width: 500px;
+                height: 400px;
+            }
+            
+            .stats-container {
+                flex-wrap: wrap;
+            }
+            
+            .stat-box {
+                min-width: 120px;
+                padding: 10px;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+            
+            .rating-buttons {
+                flex-wrap: wrap;
+            }
+            
+            .rating-btn {
+                min-width: 130px;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .rating-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .rating-btn {
+                width: 100%;
+            }
+            
+            .btn {
+                width: 100%;
+                margin: 5px 0;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .subtitle {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>德语单词闪卡系统</h1>
+            <p class="subtitle">基于遗忘曲线的高效记忆算法</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="stats-container">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalWords">0</div>
+                    <div class="stat-label">总单词数</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="toReview">0</div>
+                    <div class="stat-label">待复习</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="meaningMastered">0</div>
+                    <div class="stat-label">词义已掌握</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="pronunciationMastered">0</div>
+                    <div class="stat-label">发音已掌握</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="todayReviewed">0</div>
+                    <div class="stat-label">今日已复习</div>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div class="file-section">
+                    <div class="upload-area" id="dropArea">
+                        <div class="upload-icon"><i class="fas fa-file-excel"></i></div>
+                        <h3>导入Excel单词表</h3>
+                        <p>拖放文件到此处或点击上传</p>
+                        <input type="file" id="fileInput" class="file-input" accept=".xlsx, .xls">
+                    </div>
+                    
+                    <div class="btn-group" style="text-align: center; margin-top: 20px;">
+                        <button class="btn" id="startBtn"><i class="fas fa-play"></i> 开始学习</button>
+                        <button class="btn btn-export" id="exportBtn"><i class="fas fa-file-export"></i> 导出Excel</button>
+                        <button class="btn btn-reset" id="resetBtn"><i class="fas fa-redo"></i> 重置进度</button>
+                    </div>
+                    
+                    <div class="status-message" id="statusMessage">
+                        请上传包含德语单词的Excel文件开始学习
+                    </div>
+                    
+                    <div class="instructions">
+                        <div class="instructions-header" id="instructionsToggle">
+                            <h3><i class="fas fa-info-circle"></i> 使用说明</h3>
+                            <span class="toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                        </div>
+                        <div class="instructions-content" id="instructionsContent">
+                            <ol>
+                                <li>上传包含德语单词的Excel文件（需包含English, German等列）</li>
+                                <li>点击"开始学习"按钮开始复习单词</li>
+                                <li>点击卡片查看单词详细信息</li>
+                                <li>点击喇叭图标播放德语发音</li>
+                                <li>分别评估词义记忆和发音记忆</li>
+                                <li>系统会根据遗忘曲线自动安排复习计划</li>
+                                <li>学习完成后可导出更新后的Excel文件</li>
+                                <li>完成所有复习后会显示祝贺画面</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flashcard-section">
+                    <div class="flashcard" id="flashcard">
+                        <div class="flashcard-inner">
+                            <div class="flashcard-front">
+                                <div class="word" id="englishWord">准备学习</div>
+                                <div class="hint">点击卡片查看详情</div>
+                            </div>
+                            <div class="flashcard-back">
+                                <div class="back-top">
+                                    <div class="word" id="germanWord">Bereit zu lernen!</div>
+                                </div>
+                                <div class="back-bottom">
+                                    <div class="detail-box">
+                                        <div class="detail-label">复数/动词变位</div>
+                                        <div class="detail-value" id="pluralVerb">-</div>
+                                    </div>
+                                    <div class="detail-box">
+                                        <div class="detail-label">介词</div>
+                                        <div class="detail-value" id="preposition">-</div>
+                                    </div>
+                                    <div class="detail-box pronunciation-box">
+                                        <div class="detail-label">发音</div>
+                                        <div class="sound-btn" id="soundBtn">
+                                            <i class="fas fa-volume-up"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="rating-section">
+                        <div class="rating-group">
+                            <div class="rating-title">词义记忆评估</div>
+                            <div class="rating-buttons">
+                                <button class="rating-btn btn-again" id="btnMeaningAgain">
+                                    <i class="fas fa-times-circle"></i> 完全忘记
+                                </button>
+                                <button class="rating-btn btn-hard" id="btnMeaningHard">
+                                    <i class="fas fa-question-circle"></i> 记忆模糊
+                                </button>
+                                <button class="rating-btn btn-good" id="btnMeaningGood">
+                                    <i class="fas fa-check-circle"></i> 完全想起
+                                </button>
+                                <button class="rating-btn btn-mastered" id="btnMeaningMastered">
+                                    <i class="fas fa-star"></i> 熟练掌握
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rating-group">
+                            <div class="rating-title">发音记忆评估</div>
+                            <div class="rating-buttons">
+                                <button class="rating-btn btn-again" id="btnPronunciationAgain">
+                                    <i class="fas fa-times-circle"></i> 完全错误
+                                </button>
+                                <button class="rating-btn btn-hard" id="btnPronunciationHard">
+                                    <i class="fas fa-question-circle"></i> 部分正确
+                                </button>
+                                <button class="rating-btn btn-good" id="btnPronunciationGood">
+                                    <i class="fas fa-check-circle"></i> 完全正确
+                                </button>
+                                <button class="rating-btn btn-mastered" id="btnPronunciationMastered">
+                                    <i class="fas fa-star"></i> 熟练掌握
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0/0 已完成</div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>基于遗忘曲线算法的德语单词学习系统 | 双维度评估：词义记忆 + 发音记忆</p>
+        </footer>
+        
+        <!-- 祝贺画面 -->
+        <div class="celebration-modal" id="celebrationModal">
+            <div class="celebration-content">
+                <button class="close-modal" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2 class="celebration-title">恭喜！</h2>
+                <div class="celebration-message">
+                    您已经完成了所有单词的复习！您的德语学习取得了显著进步。
+                </div>
+                
+                <div class="celebration-stats">
+                    <div class="celebration-stat">
+                        <div class="celebration-stat-value" id="celebTotal">0</div>
+                        <div class="celebration-stat-label">总复习单词</div>
+                    </div>
+                    <div class="celebration-stat">
+                        <div class="celebration-stat-value" id="celebMeaning">0</div>
+                        <div class="celebration-stat-label">词义掌握</div>
+                    </div>
+                    <div class="celebration-stat">
+                        <div class="celebration-stat-value" id="celebPronunciation">0</div>
+                        <div class="celebration-stat-label">发音掌握</div>
+                    </div>
+                </div>
+                
+                <p class="celebration-message">
+                    请导出更新后的Excel文件保存您的学习进度
+                </p>
+                
+                <button class="btn btn-export" id="exportFromCelebration">
+                    <i class="fas fa-file-export"></i> 导出Excel文件
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 复习间隔序列
+        const REVIEW_INTERVALS = [0, 1, 2, 4, 7, 15, 31, 45, 60, 90, 180];
+        const MAX_INTERVAL_INDEX = REVIEW_INTERVALS.length - 1;
+        
+        // 示例数据
+        const sampleWords = [
+            {
+                english: "Apple",
+                german: "Apfel",
+                plural: "Äpfel",
+                preposition: "",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "Book",
+                german: "Buch",
+                plural: "Bücher",
+                preposition: "",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "To go",
+                german: "gehen",
+                plural: "geht, ging, gegangen",
+                preposition: "",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "House",
+                german: "Haus",
+                plural: "Häuser",
+                preposition: "in",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "Water",
+                german: "Wasser",
+                plural: "",
+                preposition: "mit",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "Mother",
+                german: "Mutter",
+                plural: "Mütter",
+                preposition: "",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "Father",
+                german: "Vater",
+                plural: "Väter",
+                preposition: "",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "Child",
+                german: "Kind",
+                plural: "Kinder",
+                preposition: "",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "Friend",
+                german: "Freund",
+                plural: "Freunde",
+                preposition: "mit",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            },
+            {
+                english: "School",
+                german: "Schule",
+                plural: "Schulen",
+                preposition: "in",
+                meaningIntervalIndex: 0,
+                pronunciationIntervalIndex: 0,
+                lastReviewed: null,
+                nextReview: null,
+                reviewCount: 0
+            }
+        ];
+        
+        // 全局变量
+        let words = [];
+        let reviewQueue = [];
+        let currentWordIndex = 0;
+        let reviewedToday = 0;
+        let meaningRated = false;
+        let pronunciationRated = false;
+        let failedWords = []; // 存储未掌握的单词索引
+        
+        // DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const dropArea = document.getElementById('dropArea');
+        const flashcard = document.getElementById('flashcard');
+        const englishWord = document.getElementById('englishWord');
+        const germanWord = document.getElementById('germanWord');
+        const pluralVerb = document.getElementById('pluralVerb');
+        const preposition = document.getElementById('preposition');
+        const soundBtn = document.getElementById('soundBtn');
+        const startBtn = document.getElementById('startBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const btnMeaningAgain = document.getElementById('btnMeaningAgain');
+        const btnMeaningHard = document.getElementById('btnMeaningHard');
+        const btnMeaningGood = document.getElementById('btnMeaningGood');
+        const btnMeaningMastered = document.getElementById('btnMeaningMastered');
+        const btnPronunciationAgain = document.getElementById('btnPronunciationAgain');
+        const btnPronunciationHard = document.getElementById('btnPronunciationHard');
+        const btnPronunciationGood = document.getElementById('btnPronunciationGood');
+        const btnPronunciationMastered = document.getElementById('btnPronunciationMastered');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const totalWords = document.getElementById('totalWords');
+        const toReview = document.getElementById('toReview');
+        const meaningMastered = document.getElementById('meaningMastered');
+        const pronunciationMastered = document.getElementById('pronunciationMastered');
+        const todayReviewed = document.getElementById('todayReviewed');
+        const instructionsToggle = document.getElementById('instructionsToggle');
+        const instructionsContent = document.getElementById('instructionsContent');
+        const celebrationModal = document.getElementById('celebrationModal');
+        const closeModal = document.getElementById('closeModal');
+        const exportFromCelebration = document.getElementById('exportFromCelebration');
+        const celebTotal = document.getElementById('celebTotal');
+        const celebMeaning = document.getElementById('celebMeaning');
+        const celebPronunciation = document.getElementById('celebPronunciation');
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 设置事件监听器
+            dropArea.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileUpload);
+            flashcard.addEventListener('click', flipCard);
+            startBtn.addEventListener('click', startReview);
+            exportBtn.addEventListener('click', exportToExcel);
+            resetBtn.addEventListener('click', resetProgress);
+            soundBtn.addEventListener('click', playPronunciation);
+            
+            // 阻止发音按钮的点击事件冒泡
+            soundBtn.addEventListener('click', e => {
+                e.stopPropagation();
+            });
+            
+            // 词义评估按钮
+            btnMeaningAgain.addEventListener('click', () => rateMeaning(0));
+            btnMeaningHard.addEventListener('click', () => rateMeaning(1));
+            btnMeaningGood.addEventListener('click', () => rateMeaning(2));
+            btnMeaningMastered.addEventListener('click', () => rateMeaning(3));
+            
+            // 发音评估按钮
+            btnPronunciationAgain.addEventListener('click', () => ratePronunciation(0));
+            btnPronunciationHard.addEventListener('click', () => ratePronunciation(1));
+            btnPronunciationGood.addEventListener('click', () => ratePronunciation(2));
+            btnPronunciationMastered.addEventListener('click', () => ratePronunciation(3));
+            
+            // 使用说明折叠
+            instructionsToggle.addEventListener('click', toggleInstructions);
+            
+            // 祝贺画面
+            closeModal.addEventListener('click', () => {
+                celebrationModal.classList.remove('active');
+            });
+            
+            exportFromCelebration.addEventListener('click', exportToExcel);
+            
+            // 初始化拖放功能
+            initDragAndDrop();
+            
+            // 使用示例数据
+            words = [...sampleWords];
+            updateStats();
+        });
+        
+        // 切换使用说明
+        function toggleInstructions() {
+            instructionsContent.classList.toggle('expanded');
+            const icon = instructionsToggle.querySelector('.toggle-icon');
+            icon.classList.toggle('expanded');
+        }
+        
+        // 初始化拖放功能
+        function initDragAndDrop() {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            ['dragenter', 'dragoover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            dropArea.addEventListener('drop', handleDrop, false);
+        }
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlight() {
+            dropArea.style.backgroundColor = 'rgba(75, 108, 183, 0.2)';
+        }
+        
+        function unhighlight() {
+            dropArea.style.backgroundColor = '';
+        }
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            handleFileUpload();
+        }
+        
+        // 处理文件上传
+        function handleFileUpload() {
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // 获取第一个工作表
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // 转换为JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    // 处理数据
+                    processExcelData(jsonData);
+                    
+                    statusMessage.textContent = `成功导入 ${jsonData.length} 个单词`;
+                    statusMessage.style.backgroundColor = '#d4edda';
+                    statusMessage.style.color = '#155724';
+                    
+                    updateStats();
+                } catch (error) {
+                    statusMessage.textContent = `错误: ${error.message}`;
+                    statusMessage.style.backgroundColor = '#f8d7da';
+                    statusMessage.style.color = '#721c24';
+                    console.error(error);
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // 处理Excel数据
+        function processExcelData(data) {
+            words = data.map(row => {
+                // 转换列名，确保兼容性
+                const word = {
+                    english: row.English || row.english || row.ENGLISH || '',
+                    german: row.German || row.german || row.GERMAN || '',
+                    plural: row['Plural endings / Verb conjugations'] || row.Plural || row.plural || '',
+                    preposition: row.Preposition || row.preposition || '',
+                    
+                    // 设置默认值
+                    meaningIntervalIndex: row.meaningIntervalIndex ? parseInt(row.meaningIntervalIndex) : 0,
+                    pronunciationIntervalIndex: row.pronunciationIntervalIndex ? parseInt(row.pronunciationIntervalIndex) : 0,
+                    lastReviewed: row.lastReviewed ? new Date(row.lastReviewed) : null,
+                    nextReview: row.nextReview ? new Date(row.nextReview) : null,
+                    reviewCount: row.reviewCount ? parseInt(row.reviewCount) : 0
+                };
+                
+                return word;
+            });
+        }
+        
+        // 播放德语发音
+        function playPronunciation() {
+            if (currentWordIndex >= reviewQueue.length) return;
+            
+            const wordIndex = reviewQueue[currentWordIndex];
+            const word = words[wordIndex];
+            
+            // 使用Web Speech API播放德语发音
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(word.german);
+                utterance.lang = 'de-DE';
+                utterance.rate = 0.9;
+                
+                // 尝试选择德语语音
+                const voices = speechSynthesis.getVoices();
+                const germanVoice = voices.find(voice => 
+                    voice.lang.includes('de') && voice.lang.includes('DE')
+                );
+                
+                if (germanVoice) {
+                    utterance.voice = germanVoice;
+                } else {
+                    console.warn('未找到德语语音，使用默认语音');
+                }
+                
+                speechSynthesis.speak(utterance);
+                
+                // 添加动画效果
+                soundBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                soundBtn.style.background = 'linear-gradient(to right, #00b09b, #96c93d)';
+                setTimeout(() => {
+                    soundBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                    soundBtn.style.background = 'linear-gradient(135deg, #4b6cb7, #3a5699)';
+                }, 1000);
+            } else {
+                alert('您的浏览器不支持文本转语音功能');
+            }
+        }
+        
+        // 开始复习
+        function startReview() {
+            if (words.length === 0) {
+                statusMessage.textContent = "请先导入单词数据";
+                statusMessage.style.backgroundColor = "#fff3cd";
+                statusMessage.style.color = "#856404";
+                return;
+            }
+            
+            // 构建复习队列
+            buildReviewQueue();
+            
+            if (reviewQueue.length === 0) {
+                statusMessage.textContent = "恭喜！目前没有需要复习的单词";
+                statusMessage.style.backgroundColor = "#d4edda";
+                statusMessage.style.color = "#155724";
+                return;
+            }
+            
+            // 随机打乱复习队列
+            shuffleArray(reviewQueue);
+            
+            currentWordIndex = 0;
+            reviewedToday = 0;
+            meaningRated = false;
+            pronunciationRated = false;
+            failedWords = []; // 重置未掌握单词列表
+            showCurrentWord();
+            
+            // 更新状态
+            statusMessage.textContent = `开始复习 ${reviewQueue.length} 个单词`;
+            statusMessage.style.backgroundColor = "#cce5ff";
+            statusMessage.style.color = "#004085";
+            
+            updateProgress();
+        }
+        
+        // 随机打乱数组
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        
+        // 构建复习队列
+        function buildReviewQueue() {
+            const now = new Date();
+            reviewQueue = [];
+            
+            words.forEach((word, index) => {
+                // 计算单词优先级（基于复习间隔）
+                const priority = calculateWordPriority(word, now);
+                
+                // 如果优先级大于0，则需要复习
+                if (priority > 0) {
+                    reviewQueue.push({ index, priority });
+                }
+            });
+            
+            // 按优先级排序
+            reviewQueue.sort((a, b) => b.priority - a.priority);
+            
+            // 只取索引
+            reviewQueue = reviewQueue.map(item => item.index);
+        }
+        
+        // 计算单词优先级
+        function calculateWordPriority(word, now) {
+            // 如果从未复习过，优先级最高
+            if (!word.lastReviewed) return 100;
+            
+            // 检查是否需要复习
+            if (!word.nextReview || word.nextReview <= now) {
+                // 计算逾期天数作为优先级
+                const overdueDays = Math.floor((now - word.nextReview) / (1000 * 60 * 60 * 24));
+                return Math.max(1, overdueDays);
+            }
+            
+            return 0; // 不需要复习
+        }
+        
+        // 显示当前单词
+        function showCurrentWord() {
+            if (currentWordIndex >= reviewQueue.length) {
+                // 复习完成
+                statusMessage.textContent = "恭喜！已完成本次复习";
+                statusMessage.style.backgroundColor = "#d4edda";
+                statusMessage.style.color = "#155724";
+                flashcard.classList.remove('flipped');
+                englishWord.textContent = "复习完成";
+                germanWord.textContent = "Gut gemacht!";
+                pluralVerb.textContent = "";
+                preposition.textContent = "";
+                
+                // 显示祝贺画面
+                showCelebration();
+                return;
+            }
+            
+            const wordIndex = reviewQueue[currentWordIndex];
+            const word = words[wordIndex];
+            
+            flashcard.classList.remove('flipped');
+            englishWord.textContent = word.english;
+            germanWord.textContent = word.german;
+            pluralVerb.textContent = word.plural || "-";
+            preposition.textContent = word.preposition || "-";
+            
+            // 重置评分状态
+            meaningRated = false;
+            pronunciationRated = false;
+            resetRatingButtons();
+        }
+        
+        // 显示祝贺画面
+        function showCelebration() {
+            // 计算统计数据
+            const totalReviewed = reviewQueue.length;
+            const meaningMasteredCount = words.filter(word => 
+                word.meaningIntervalIndex >= 8
+            ).length;
+            const pronunciationMasteredCount = words.filter(word => 
+                word.pronunciationIntervalIndex >= 8
+            ).length;
+            
+            // 更新祝贺画面内容
+            celebTotal.textContent = totalReviewed;
+            celebMeaning.textContent = meaningMasteredCount;
+            celebPronunciation.textContent = pronunciationMasteredCount;
+            
+            // 显示祝贺画面
+            celebrationModal.classList.add('active');
+        }
+        
+        // 重置评分按钮状态
+        function resetRatingButtons() {
+            btnMeaningAgain.style.opacity = 1;
+            btnMeaningHard.style.opacity = 1;
+            btnMeaningGood.style.opacity = 1;
+            btnMeaningMastered.style.opacity = 1;
+            btnPronunciationAgain.style.opacity = 1;
+            btnPronunciationHard.style.opacity = 1;
+            btnPronunciationGood.style.opacity = 1;
+            btnPronunciationMastered.style.opacity = 1;
+        }
+        
+        // 翻转卡片
+        function flipCard() {
+            if (currentWordIndex < reviewQueue.length) {
+                flashcard.classList.toggle('flipped');
+            }
+        }
+        
+        // 词义评分
+        function rateMeaning(rating) {
+            if (meaningRated || currentWordIndex >= reviewQueue.length) return;
+            
+            const wordIndex = reviewQueue[currentWordIndex];
+            const word = words[wordIndex];
+            
+            // 更新词义复习间隔
+            updateInterval(word, rating, 'meaning');
+            
+            // 标记已评分
+            meaningRated = true;
+            updateButtonOpacity(btnMeaningAgain, btnMeaningHard, btnMeaningGood, btnMeaningMastered, rating);
+            
+            // 检查是否完成评分
+            checkCompletion(wordIndex);
+        }
+        
+        // 发音评分
+        function ratePronunciation(rating) {
+            if (pronunciationRated || currentWordIndex >= reviewQueue.length) return;
+            
+            const wordIndex = reviewQueue[currentWordIndex];
+            const word = words[wordIndex];
+            
+            // 更新发音复习间隔
+            updateInterval(word, rating, 'pronunciation');
+            
+            // 标记已评分
+            pronunciationRated = true;
+            updateButtonOpacity(btnPronunciationAgain, btnPronunciationHard, btnPronunciationGood, btnPronunciationMastered, rating);
+            
+            // 检查是否完成评分
+            checkCompletion(wordIndex);
+        }
+        
+        // 更新复习间隔
+        function updateInterval(word, rating, type) {
+            const now = new Date();
+            const intervalType = type === 'meaning' ? 'meaningIntervalIndex' : 'pronunciationIntervalIndex';
+            const wordIndex = reviewQueue[currentWordIndex];
+            
+            // 根据评分更新间隔等级
+            if (rating === 0) {
+                // 完全忘记 - 退到1天
+                word[intervalType] = 1;
+                // 添加到未掌握单词列表
+                if (!failedWords.includes(wordIndex)) {
+                    failedWords.push(wordIndex);
+                }
+            } else if (rating === 1) {
+                // 记忆模糊 - 退到2天
+                word[intervalType] = 2;
+                // 添加到未掌握单词列表
+                if (!failedWords.includes(wordIndex)) {
+                    failedWords.push(wordIndex);
+                }
+            } else if (rating === 2) {
+                // 完全想起 - 提升一个等级
+                word[intervalType] = Math.min(word[intervalType] + 1, MAX_INTERVAL_INDEX);
+            } else if (rating === 3) {
+                // 熟练掌握 - 直接跳到90天
+                word[intervalType] = 9; // REVIEW_INTERVALS[9] = 90天
+            }
+            
+            // 更新复习信息
+            word.lastReviewed = now;
+            word.reviewCount = (word.reviewCount || 0) + 1;
+            
+            // 计算下次复习日期
+            updateNextReviewDate(word);
+        }
+        
+        // 更新按钮透明度
+        function updateButtonOpacity(btn0, btn1, btn2, btn3, rating) {
+            btn0.style.opacity = rating === 0 ? 1 : 0.5;
+            btn1.style.opacity = rating === 1 ? 1 : 0.5;
+            btn2.style.opacity = rating === 2 ? 1 : 0.5;
+            btn3.style.opacity = rating === 3 ? 1 : 0.5;
+        }
+        
+        // 更新下次复习日期
+        function updateNextReviewDate(word) {
+            const now = new Date();
+            const nextReview = new Date(now);
+            
+            // 取两个维度中较小的间隔
+            const meaningInterval = REVIEW_INTERVALS[word.meaningIntervalIndex];
+            const pronunciationInterval = REVIEW_INTERVALS[word.pronunciationIntervalIndex];
+            const minInterval = Math.min(meaningInterval, pronunciationInterval);
+            
+            nextReview.setDate(now.getDate() + minInterval);
+            word.nextReview = nextReview;
+        }
+        
+        // 检查评分是否完成
+        function checkCompletion(wordIndex) {
+            if (meaningRated && pronunciationRated) {
+                // 检查是否需要重复当前单词
+                const word = words[wordIndex];
+                const meaningFailed = word.meaningIntervalIndex <= 2; // 间隔≤2天
+                const pronunciationFailed = word.pronunciationIntervalIndex <= 2; // 间隔≤2天
+                
+                if (meaningFailed || pronunciationFailed) {
+                    // 将未掌握的单词重新加入队列
+                    reviewQueue.push(wordIndex);
+                }
+                
+                // 移动到下一个单词
+                currentWordIndex++;
+                reviewedToday++;
+                
+                // 检查是否还有未掌握的单词需要复习
+                if (currentWordIndex >= reviewQueue.length && failedWords.length > 0) {
+                    // 重新复习未掌握的单词
+                    reviewQueue = [...failedWords];
+                    shuffleArray(reviewQueue);
+                    currentWordIndex = 0;
+                    failedWords = [];
+                    statusMessage.textContent = `开始复习未掌握的 ${reviewQueue.length} 个单词`;
+                }
+                
+                // 更新UI
+                setTimeout(() => {
+                    showCurrentWord();
+                    updateStats();
+                    updateProgress();
+                }, 800);
+            }
+        }
+        
+        // 更新进度
+        function updateProgress() {
+            const progress = currentWordIndex;
+            const total = reviewQueue.length;
+            
+            if (total > 0) {
+                const percentage = (progress / total) * 100;
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `${progress}/${total} 已完成 (${Math.round(percentage)}%)`;
+            } else {
+                progressBar.style.width = '0%';
+                progressText.textContent = '0/0 已完成';
+            }
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            const now = new Date();
+            
+            totalWords.textContent = words.length;
+            
+            // 计算需要复习的单词
+            const toReviewCount = words.filter(word => 
+                !word.nextReview || new Date(word.nextReview) <= now
+            ).length;
+            toReview.textContent = toReviewCount;
+            
+            // 计算词义已掌握的单词（间隔等级 >= 8）
+            const meaningMasteredCount = words.filter(word => word.meaningIntervalIndex >= 8).length;
+            meaningMastered.textContent = meaningMasteredCount;
+            
+            // 计算发音已掌握的单词（间隔等级 >= 8）
+            const pronunciationMasteredCount = words.filter(word => word.pronunciationIntervalIndex >= 8).length;
+            pronunciationMastered.textContent = pronunciationMasteredCount;
+            
+            todayReviewed.textContent = reviewedToday;
+        }
+        
+        // 导出到Excel
+        function exportToExcel() {
+            if (words.length === 0) {
+                statusMessage.textContent = "没有数据可导出";
+                statusMessage.style.backgroundColor = "#fff3cd";
+                statusMessage.style.color = "#856404";
+                return;
+            }
+            
+            try {
+                // 准备导出数据
+                const exportData = words.map(word => ({
+                    English: word.english,
+                    German: word.german,
+                    'Plural endings / Verb conjugations': word.plural,
+                    Preposition: word.preposition,
+                    meaningIntervalIndex: word.meaningIntervalIndex,
+                    pronunciationIntervalIndex: word.pronunciationIntervalIndex,
+                    lastReviewed: word.lastReviewed ? word.lastReviewed.toISOString() : '',
+                    nextReview: word.nextReview ? word.nextReview.toISOString() : '',
+                    reviewCount: word.reviewCount
+                }));
+                
+                // 创建工作表
+                const worksheet = XLSX.utils.json_to_sheet(exportData);
+                
+                // 创建工作簿
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Words');
+                
+                // 生成Excel文件
+                XLSX.writeFile(workbook, 'german_words_final.xlsx');
+                
+                statusMessage.textContent = "文件导出成功！";
+                statusMessage.style.backgroundColor = "#d4edda";
+                statusMessage.style.color = "#155724";
+                
+                // 关闭祝贺画面
+                celebrationModal.classList.remove('active');
+            } catch (error) {
+                statusMessage.textContent = `导出失败: ${error.message}`;
+                statusMessage.style.backgroundColor = "#f8d7da";
+                statusMessage.style.color = "#721c24";
+                console.error(error);
+            }
+        }
+        
+        // 重置进度
+        function resetProgress() {
+            if (words.length === 0) return;
+            
+            if (confirm('确定要重置所有单词的学习进度吗？')) {
+                words.forEach(word => {
+                    word.meaningIntervalIndex = 0;
+                    word.pronunciationIntervalIndex = 0;
+                    word.lastReviewed = null;
+                    word.nextReview = null;
+                    word.reviewCount = 0;
+                });
+                
+                reviewQueue = [];
+                currentWordIndex = 0;
+                reviewedToday = 0;
+                meaningRated = false;
+                pronunciationRated = false;
+                failedWords = [];
+                
+                updateStats();
+                showCurrentWord();
+                updateProgress();
+                
+                statusMessage.textContent = "已重置所有单词的学习进度";
+                statusMessage.style.backgroundColor = "#d4edda";
+                statusMessage.style.color = "#155724";
+            }
+        }
+    </script>
+</body>
+</html>
